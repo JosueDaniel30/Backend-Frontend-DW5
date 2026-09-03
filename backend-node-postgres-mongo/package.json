@@ -1,0 +1,19 @@
+{
+  "name": "backend-node-postgres-mongo",
+  "version": "1.0.0",
+  "description": "Backend didáctico con Node.js, Express, PostgreSQL y MongoDB sin ORM",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": ["node", "express", "postgresql", "mongodb", "backend", "api"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "mongodb": "^6.9.0",
+    "pg": "^8.13.1"
+  }
+}
