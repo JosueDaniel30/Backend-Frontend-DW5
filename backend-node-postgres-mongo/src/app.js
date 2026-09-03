@@ -1,23 +1,25 @@
+const cors = require('cors');
 const express = require('express');
-const usuariosRoutes = require('./routes/usuarios.routes');
+
 const productosRoutes = require('./routes/productos.routes');
+const clientesRoutes = require('./routes/clientes.routes');
 
 const app = express();
 
-// Permite recibir JSON en req.body.
+app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
   res.json({
     mensaje: 'API didáctica Node.js + PostgreSQL + MongoDB',
     endpoints: {
-      postgres: '/api/usuarios',
-      mongo: '/api/productos',
+      postgres: '/api/productos',
+      mongo: '/api/clientes',
     },
   });
 });
 
-app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/productos', productosRoutes);
+app.use('/api/clientes', clientesRoutes);
 
 module.exports = app;

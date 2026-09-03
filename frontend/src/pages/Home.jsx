@@ -1,101 +1,170 @@
-import { useState, useEffect } from 'react';
-import { getProductos } from '../services/api';
-import ProductCard from '../components/ProductCard';
+import { useEffect, useState } from 'react';
+import ListaProductos from '../components/ListaProductos';
 
 export default function Home() {
   const [productos, setProductos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [busqueda, setBusqueda] = useState('');
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const cargarProductos = async () => {
-      try {
-        setLoading(true);
-        const data = await getProductos();
-        setProductos(data);
-      } catch (err) {
-        setError('Error al cargar productos');
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const API = 'http://localhost:3000/api/productos';
+
+  // ============================
+  // CARGAR TODOS LOS PRODUCTOS
+  // ============================
+  async function cargarProductos() {
+    try {
+      setCargando(true);
+      setError('');
+
+      const respuesta = await fetch(API);
+
+      if (!respuesta.ok) {
+        throw new Error('Error al consultar productos');
       }
-    };
 
+      const datos = await respuesta.json();
+
+      setProductos(datos);
+    } catch (error) {
+      console.error(error);
+      setError('No se pudieron cargar los productos');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  // ============================
+  // CARGAR AL INICIAR LA PÁGINA
+  // ============================
+  useEffect(() => {
     cargarProductos();
   }, []);
 
-  const productosFiltrados = filtroCategoria
-    ? productos.filter((p) => p.categoria === filtroCategoria)
-    : productos;
+  // ============================
+  // MOSTRAR SOLO DISPONIBLES
+  // ============================
+  async function mostrarDisponibles() {
+    try {
+      setCargando(true);
+      setError('');
 
-  const categorias = [...new Set(productos.map((p) => p.categoria))];
+      const respuesta = await fetch(`${API}/disponibles`);
 
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-        <p className="text-xl text-gray-600">Cargando productos...</p>
-      </div>
-    );
+      if (!respuesta.ok) {
+        throw new Error('Error al consultar productos disponibles');
+      }
+
+      const datos = await respuesta.json();
+
+      setProductos(datos);
+    } catch (error) {
+      console.error(error);
+      setError('No se pudieron cargar los productos disponibles');
+    } finally {
+      setCargando(false);
+    }
   }
 
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12 text-center">
-        <p className="text-xl text-red-600">{error}</p>
-      </div>
-    );
+  // ============================
+  // BUSCAR PRODUCTOS POR NOMBRE
+  // ============================
+  async function buscarProductos() {
+    // Si el campo está vacío, vuelve a mostrar todos
+    if (!busqueda.trim()) {
+      cargarProductos();
+      return;
+    }
+
+    try {
+      setCargando(true);
+      setError('');
+
+      const respuesta = await fetch(
+        `${API}/buscar/${encodeURIComponent(busqueda)}`
+      );
+
+      if (!respuesta.ok) {
+        throw new Error('Error al buscar productos');
+      }
+
+      const datos = await respuesta.json();
+
+      setProductos(datos);
+    } catch (error) {
+      console.error(error);
+      setError('No se pudo realizar la búsqueda');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  // ============================
+  // BUSCAR AL PRESIONAR ENTER
+  // ============================
+  function manejarEnter(evento) {
+    if (evento.key === 'Enter') {
+      buscarProductos();
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-6">
-            Bienvenido a TiendaShop
-          </h1>
-
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setFiltroCategoria('')}
-              className={`px-4 py-2 rounded transition ${
-                filtroCategoria === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-800 hover:bg-gray-100'
-              }`}
-            >
-              Todas las categorías
-            </button>
-            {categorias.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setFiltroCategoria(cat)}
-                className={`px-4 py-2 rounded transition ${
-                  filtroCategoria === cat
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+    <main className="home-page">
+      <section className="home-hero">
+        <div>
+          <p className="home-kicker">Selección de la semana</p>
+          <h1 className="home-title">Compra cosas que sí quieres.</h1>
         </div>
+        <p className="home-subtitle">Diseño útil, precios claros y entrega sin drama.</p>
+      </section>
 
-        {productosFiltrados.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-xl text-gray-600">
-              No hay productos en esta categoría
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {productosFiltrados.map((producto) => (
-              <ProductCard key={producto._id} producto={producto} />
-            ))}
-          </div>
-        )}
+      {/* CONTROLES */}
+      <div className="catalog-controls">
+        <button
+          onClick={cargarProductos}
+        >
+          Mostrar todos
+        </button>
+
+        <button
+          onClick={mostrarDisponibles}
+        >
+          Mostrar disponibles
+        </button>
+
+        <input
+          type="text"
+          placeholder="Buscar producto..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          onKeyDown={manejarEnter}
+        />
+
+        <button
+          onClick={buscarProductos}
+        >
+          Buscar
+        </button>
       </div>
-    </div>
+
+      {/* MENSAJE DE CARGA */}
+      {cargando && (
+        <p className="status-message">
+          Cargando productos...
+        </p>
+      )}
+
+      {/* MENSAJE DE ERROR */}
+      {error && (
+        <p className="status-message error">
+          {error}
+        </p>
+      )}
+
+      {/* LISTADO DE PRODUCTOS */}
+      {!cargando && !error && (
+        <ListaProductos productos={productos} />
+      )}
+    </main>
   );
 }

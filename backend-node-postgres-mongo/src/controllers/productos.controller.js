@@ -1,23 +1,18 @@
-const { ObjectId } = require('mongodb');
-const { getMongoDatabase } = require('../database/mongo');
-
-function obtenerColeccion() {
-  const db = getMongoDatabase();
-  return db.collection('productos');
-}
+const { pool } = require('../database/postgres');
 
 // GET /api/productos
 async function obtenerProductos(req, res) {
   try {
-    const productos = await obtenerColeccion()
-      .find({})
-      .sort({ nombre: 1 })
-      .toArray();
+    const resultado = await pool.query(
+      'SELECT id, nombre, precio, stock FROM productos ORDER BY id'
+    );
 
-    res.json(productos);
+    res.json(resultado.rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al consultar productos en MongoDB' });
+    res.status(500).json({
+      error: 'Error al consultar productos en PostgreSQL',
+    });
   }
 }
 
@@ -26,54 +21,50 @@ async function obtenerProductoPorId(req, res) {
   try {
     const { id } = req.params;
 
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'ObjectId inválido' });
+    const resultado = await pool.query(
+      'SELECT id, nombre, precio, stock FROM productos WHERE id = $1',
+      [id]
+    );
+
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        error: 'Producto no encontrado',
+      });
     }
 
-    const producto = await obtenerColeccion().findOne({
-      _id: new ObjectId(id),
-    });
-
-    if (!producto) {
-      return res.status(404).json({ error: 'Producto no encontrado' });
-    }
-
-    res.json(producto);
+    res.json(resultado.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al consultar el producto' });
+    res.status(500).json({
+      error: 'Error al consultar el producto',
+    });
   }
 }
 
 // POST /api/productos
 async function crearProducto(req, res) {
   try {
-    const { nombre, categoria, precio, atributos } = req.body;
+    const { nombre, precio, stock } = req.body;
 
-    if (!nombre || !categoria) {
+    if (!nombre || precio === undefined || stock === undefined) {
       return res.status(400).json({
-        error: 'nombre y categoria son obligatorios',
+        error: 'nombre, precio y stock son obligatorios',
       });
     }
 
-    const nuevoProducto = {
-      nombre,
-      categoria,
-      precio: precio ?? null,
-      // atributos puede tener distinta estructura para cada producto.
-      atributos: atributos ?? {},
-      creadoEn: new Date(),
-    };
+    const resultado = await pool.query(
+      `INSERT INTO productos(nombre, precio, stock)
+       VALUES ($1, $2, $3)
+       RETURNING id, nombre, precio, stock`,
+      [nombre, precio, stock]
+    );
 
-    const resultado = await obtenerColeccion().insertOne(nuevoProducto);
-
-    res.status(201).json({
-      _id: resultado.insertedId,
-      ...nuevoProducto,
-    });
+    res.status(201).json(resultado.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al crear producto' });
+    res.status(500).json({
+      error: 'Error al crear producto',
+    });
   }
 }
 
@@ -81,33 +72,36 @@ async function crearProducto(req, res) {
 async function actualizarProducto(req, res) {
   try {
     const { id } = req.params;
-    const { nombre, categoria, precio, atributos } = req.body;
+    const { nombre, precio, stock } = req.body;
 
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'ObjectId inválido' });
+    if (!nombre || precio === undefined || stock === undefined) {
+      return res.status(400).json({
+        error: 'nombre, precio y stock son obligatorios',
+      });
     }
 
-    const resultado = await obtenerColeccion().findOneAndUpdate(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          nombre,
-          categoria,
-          precio: precio ?? null,
-          atributos: atributos ?? {},
-        },
-      },
-      { returnDocument: 'after' }
+    const resultado = await pool.query(
+      `UPDATE productos
+       SET nombre = $1,
+           precio = $2,
+           stock = $3
+       WHERE id = $4
+       RETURNING id, nombre, precio, stock`,
+      [nombre, precio, stock, id]
     );
 
-    if (!resultado) {
-      return res.status(404).json({ error: 'Producto no encontrado' });
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        error: 'Producto no encontrado',
+      });
     }
 
-    res.json(resultado);
+    res.json(resultado.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al actualizar producto' });
+    res.status(500).json({
+      error: 'Error al actualizar producto',
+    });
   }
 }
 
@@ -116,25 +110,69 @@ async function eliminarProducto(req, res) {
   try {
     const { id } = req.params;
 
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'ObjectId inválido' });
-    }
+    const resultado = await pool.query(
+      `DELETE FROM productos
+       WHERE id = $1
+       RETURNING id, nombre, precio, stock`,
+      [id]
+    );
 
-    const resultado = await obtenerColeccion().findOneAndDelete({
-      _id: new ObjectId(id),
-    });
-
-    if (!resultado) {
-      return res.status(404).json({ error: 'Producto no encontrado' });
+    if (resultado.rowCount === 0) {
+      return res.status(404).json({
+        error: 'Producto no encontrado',
+      });
     }
 
     res.json({
       mensaje: 'Producto eliminado',
-      producto: resultado,
+      producto: resultado.rows[0],
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error al eliminar producto' });
+    res.status(500).json({
+      error: 'Error al eliminar producto',
+    });
+  }
+}
+
+// GET /api/productos/disponibles
+async function obtenerProductosDisponibles(req, res) {
+  try {
+    const resultado = await pool.query(
+      `SELECT id, nombre, precio, stock
+       FROM productos
+       WHERE stock > 0
+       ORDER BY id`
+    );
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: 'Error al consultar productos disponibles'
+    });
+  }
+}
+
+// GET /api/productos/buscar/:nombre
+async function buscarProductosPorNombre(req, res) {
+  try {
+    const { nombre } = req.params;
+
+    const resultado = await pool.query(
+      `SELECT id, nombre, precio, stock
+       FROM productos
+       WHERE nombre ILIKE $1
+       ORDER BY id`,
+      [`%${nombre}%`]
+    );
+
+    res.json(resultado.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: 'Error al buscar productos por nombre'
+    });
   }
 }
 
@@ -142,6 +180,8 @@ module.exports = {
   obtenerProductos,
   obtenerProductoPorId,
   crearProducto,
+  obtenerProductosDisponibles,
   actualizarProducto,
   eliminarProducto,
+  buscarProductosPorNombre,
 };

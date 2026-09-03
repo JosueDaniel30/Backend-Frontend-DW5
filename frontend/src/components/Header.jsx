@@ -5,10 +5,10 @@ export default function Header() {
   const { cantidadItems, usuario, logout } = useCart();
 
   return (
-    <header className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
+    <header className="site-header">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2">
-          <span className="text-2xl font-bold">🛍️ TiendaShop</span>
+          <span className="brand-mark text-2xl font-bold">🛒 TiendaShop</span>
         </Link>
 
         <nav className="flex gap-6 items-center">

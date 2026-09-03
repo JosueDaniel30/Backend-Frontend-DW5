@@ -7,10 +7,18 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
-  "keywords": ["node", "express", "postgresql", "mongodb", "backend", "api"],
+  "keywords": [
+    "node",
+    "express",
+    "postgresql",
+    "mongodb",
+    "backend",
+    "api"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "mongodb": "^6.9.0",
